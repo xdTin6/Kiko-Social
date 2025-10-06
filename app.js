@@ -1,5 +1,5 @@
 // Kiko Social - Modern Social Media Platform
-// Complete JavaScript Application with Firebase Integration
+// Modified to use KikoChat Firebase Database Structure
 
 // Import Firebase modules
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
@@ -23,10 +23,11 @@ import {
     serverTimestamp,
     query,
     orderByChild,
-    limitToLast
+    limitToLast,
+    child
 } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-database.js";
 
-// Firebase Configuration
+// Firebase Configuration (Using KikoChat database)
 const firebaseConfig = {
     apiKey: "AIzaSyAe_ZfZ8rKCke47UeA9Kcs8cXpD6-G6RAQ",
     authDomain: "kiko-chat-b6435.firebaseapp.com",
@@ -42,6 +43,12 @@ const firebaseConfig = {
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 const database = getDatabase(firebaseApp);
+
+// Database paths based on old KikoChat structure
+const USERS_PATH = "users";
+const POSTS_PATH = "posts";
+const ROOMS_PATH = "rooms";
+const ANALYTICS_PATH = "analytics";
 
 // Application State
 class KikoSocialApp {
@@ -78,18 +85,31 @@ class KikoSocialApp {
         }, 2000);
     }
 
-    // Authentication Methods
+    // Utility function from old KikoChat
+    mkKey(name) { 
+        return String(name || "").trim().toLowerCase(); 
+    }
+
+    colorFromName(name) {
+        let hash = 0;
+        for (let i = 0; i < name.length; i++) {
+            hash = name.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        return `hsl(${Math.abs(hash % 360)}, 65%, 55%)`;
+    }
+
+    // Authentication Methods - Modified for KikoChat user structure
     async handleUserLogin(user) {
         this.currentUser = user;
 
-        // Check if user is admin
+        // Check if user is admin using KikoChat method
         this.isAdmin = await this.checkAdminStatus(user.email);
 
-        // Update user presence
-        await this.updateUserPresence(user.uid, true);
+        // Update user presence using KikoChat structure
+        await this.updateUserPresence(user.email, true);
 
-        // Load user data
-        await this.loadUserData(user.uid);
+        // Load user data using KikoChat structure
+        await this.loadUserData(user.email);
 
         this.showMainApp();
         this.loadFeed();
@@ -100,7 +120,7 @@ class KikoSocialApp {
 
     async handleUserLogout() {
         if (this.currentUser) {
-            await this.updateUserPresence(this.currentUser.uid, false);
+            await this.updateUserPresence(this.currentUser.email, false);
         }
 
         this.currentUser = null;
@@ -110,9 +130,15 @@ class KikoSocialApp {
 
     async checkAdminStatus(email) {
         try {
-            const adminRef = ref(database, `admins/${email.replace('.', '_').replace('@', '_at_')}`);
-            const snapshot = await get(adminRef);
-            return snapshot.exists();
+            const userKey = this.mkKey(email);
+            const userRef = ref(database, `${USERS_PATH}/${userKey}`);
+            const snapshot = await get(userRef);
+            
+            if (snapshot.exists()) {
+                const userData = snapshot.val();
+                return userData.role === 'admin';
+            }
+            return false;
         } catch (error) {
             console.error('Error checking admin status:', error);
             return false;
@@ -121,8 +147,35 @@ class KikoSocialApp {
 
     async signIn(email, password) {
         try {
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            return { success: true, user: userCredential.user };
+            // First check if user exists in KikoChat database
+            const userKey = this.mkKey(email);
+            const userRef = ref(database, `${USERS_PATH}/${userKey}`);
+            const snapshot = await get(userRef);
+
+            if (!snapshot.exists()) {
+                return { success: false, error: 'User not found in KikoChat system' };
+            }
+
+            const userData = snapshot.val();
+            if (userData.pass !== password) {
+                return { success: false, error: 'Invalid password' };
+            }
+
+            // Create Firebase auth account if it doesn't exist
+            try {
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                return { success: true, user: userCredential.user };
+            } catch (authError) {
+                // If auth doesn't exist, create it
+                if (authError.code === 'auth/user-not-found') {
+                    const newUserCredential = await createUserWithEmailAndPassword(auth, email, password);
+                    await updateProfile(newUserCredential.user, {
+                        displayName: userData.name || email.split('@')[0]
+                    });
+                    return { success: true, user: newUserCredential.user };
+                }
+                throw authError;
+            }
         } catch (error) {
             console.error('Sign in error:', error);
             return { success: false, error: error.message };
@@ -135,34 +188,45 @@ class KikoSocialApp {
         }
 
         try {
-            // Create authentication account
+            const userKey = this.mkKey(userData.email);
+            
+            // Check if user already exists in KikoChat
+            const userRef = ref(database, `${USERS_PATH}/${userKey}`);
+            const snapshot = await get(userRef);
+
+            if (snapshot.exists()) {
+                return { success: false, error: 'User already exists in KikoChat system' };
+            }
+
+            // Create user in KikoChat database structure
+            await set(userRef, {
+                pass: userData.password,
+                role: userData.role || 'user',
+                profile: {
+                    avatarColor: this.colorFromName(userData.name),
+                    status: "Available",
+                    joinDate: serverTimestamp(),
+                    name: userData.name,
+                    username: userData.username,
+                    bio: userData.bio || '',
+                    email: userData.email
+                },
+                status: {
+                    online: false,
+                    lastSeen: serverTimestamp(),
+                    typing: false
+                }
+            });
+
+            // Create Firebase auth account
             const userCredential = await createUserWithEmailAndPassword(
                 auth, 
                 userData.email, 
                 userData.password
             );
 
-            // Update profile
             await updateProfile(userCredential.user, {
                 displayName: userData.name
-            });
-
-            // Save user data to database
-            const userRef = ref(database, `users/${userCredential.user.uid}`);
-            await set(userRef, {
-                uid: userCredential.user.uid,
-                email: userData.email,
-                name: userData.name,
-                username: userData.username,
-                bio: userData.bio || '',
-                avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.name)}&background=667eea&color=fff`,
-                followers: 0,
-                following: 0,
-                posts: 0,
-                isOnline: false,
-                lastSeen: serverTimestamp(),
-                joined: serverTimestamp(),
-                isActive: true
             });
 
             return { success: true, user: userCredential.user };
@@ -182,42 +246,90 @@ class KikoSocialApp {
         }
     }
 
-    // User Data Methods
-    async loadUserData(uid) {
+    // User Data Methods - Modified for KikoChat structure
+    async loadUserData(email) {
         try {
-            const userRef = ref(database, `users/${uid}`);
+            const userKey = this.mkKey(email);
+            const userRef = ref(database, `${USERS_PATH}/${userKey}`);
             const snapshot = await get(userRef);
 
             if (snapshot.exists()) {
                 const userData = snapshot.val();
-                this.updateUserUI(userData);
+                const formattedUserData = {
+                    uid: userKey,
+                    email: email,
+                    name: userData.profile?.name || email.split('@')[0],
+                    username: userData.profile?.username || email.split('@')[0],
+                    bio: userData.profile?.bio || '',
+                    avatar: userData.profile?.avatarColor ? this.createAvatarFromColor(userData.profile.avatarColor, userData.profile.name) : `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.profile?.name || email.split('@')[0])}&background=667eea&color=fff`,
+                    followers: 0,
+                    following: 0,
+                    posts: await this.getUserPostCount(userKey),
+                    isOnline: userData.status?.online || false,
+                    lastSeen: userData.status?.lastSeen,
+                    joined: userData.profile?.joinDate,
+                    isActive: true,
+                    role: userData.role || 'user'
+                };
+                this.updateUserUI(formattedUserData);
             }
         } catch (error) {
             console.error('Error loading user data:', error);
         }
     }
 
-    async updateUserPresence(uid, isOnline) {
+    createAvatarFromColor(color, name) {
+        const initial = name ? name.charAt(0).toUpperCase() : 'U';
+        return `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="${color}"/><text x="50" y="60" font-family="Arial" font-size="40" text-anchor="middle" fill="white">${initial}</text></svg>`;
+    }
+
+    async getUserPostCount(userKey) {
         try {
-            const userRef = ref(database, `users/${uid}`);
+            const postsRef = ref(database, POSTS_PATH);
+            const snapshot = await get(postsRef);
+            let count = 0;
+
+            if (snapshot.exists()) {
+                snapshot.forEach((childSnapshot) => {
+                    const post = childSnapshot.val();
+                    if (post.authorId === userKey && post.isActive !== false) {
+                        count++;
+                    }
+                });
+            }
+            return count;
+        } catch (error) {
+            console.error('Error getting user post count:', error);
+            return 0;
+        }
+    }
+
+    async updateUserPresence(email, isOnline) {
+        try {
+            const userKey = this.mkKey(email);
+            const userRef = ref(database, `${USERS_PATH}/${userKey}`);
+            
             await update(userRef, {
-                isOnline: isOnline,
-                lastSeen: serverTimestamp()
+                'status/online': isOnline,
+                'status/lastSeen': serverTimestamp()
             });
         } catch (error) {
             console.error('Error updating user presence:', error);
         }
     }
 
-    // Post Methods
+    // Post Methods - Modified for KikoChat structure
     async createPost(content, imageUrl = null) {
         if (!this.currentUser) return;
 
         try {
-            const postRef = push(ref(database, 'posts'));
+            const userKey = this.mkKey(this.currentUser.email);
+            const postRef = push(ref(database, POSTS_PATH));
+            
             const postData = {
                 id: postRef.key,
-                authorId: this.currentUser.uid,
+                authorId: userKey,
+                authorName: this.currentUser.displayName || this.currentUser.email.split('@')[0],
                 content: content,
                 image: imageUrl,
                 timestamp: serverTimestamp(),
@@ -225,18 +337,11 @@ class KikoSocialApp {
                 comments: 0,
                 shares: 0,
                 hashtags: this.extractHashtags(content),
-                isActive: true
+                isActive: true,
+                type: "social_post" // Differentiate from chat messages
             };
 
             await set(postRef, postData);
-
-            // Update user post count
-            const userRef = ref(database, `users/${this.currentUser.uid}`);
-            const userSnapshot = await get(userRef);
-            if (userSnapshot.exists()) {
-                const currentPosts = userSnapshot.val().posts || 0;
-                await update(userRef, { posts: currentPosts + 1 });
-            }
 
             this.showToast('success', 'Post created!', 'Your post has been shared successfully');
             this.loadFeed();
@@ -248,15 +353,16 @@ class KikoSocialApp {
 
     async loadFeed() {
         try {
-            const postsRef = query(ref(database, 'posts'), orderByChild('timestamp'), limitToLast(20));
+            const postsRef = query(ref(database, POSTS_PATH), orderByChild('timestamp'), limitToLast(50));
             const snapshot = await get(postsRef);
 
             if (snapshot.exists()) {
                 const posts = [];
                 snapshot.forEach((childSnapshot) => {
                     const post = childSnapshot.val();
-                    if (post.isActive) {
-                        posts.unshift(post); // Add to beginning for chronological order
+                    // Only show social posts, not chat messages
+                    if (post.isActive !== false && (post.type === 'social_post' || !post.type)) {
+                        posts.unshift(post);
                     }
                 });
 
@@ -275,11 +381,40 @@ class KikoSocialApp {
         feedContainer.innerHTML = '';
 
         for (const post of this.posts) {
-            const authorData = await this.getUserData(post.authorId);
-            if (!authorData) continue;
-
+            const authorData = await this.getUserDataById(post.authorId);
             const postElement = this.createPostElement(post, authorData);
             feedContainer.appendChild(postElement);
+        }
+    }
+
+    async getUserDataById(userKey) {
+        try {
+            const userRef = ref(database, `${USERS_PATH}/${userKey}`);
+            const snapshot = await get(userRef);
+
+            if (snapshot.exists()) {
+                const userData = snapshot.val();
+                return {
+                    name: userData.profile?.name || userKey,
+                    username: userData.profile?.username || userKey,
+                    avatar: userData.profile?.avatarColor ? this.createAvatarFromColor(userData.profile.avatarColor, userData.profile.name) : `https://ui-avatars.com/api/?name=${encodeURIComponent(userKey)}&background=667eea&color=fff`,
+                    role: userData.role || 'user'
+                };
+            }
+            return {
+                name: userKey,
+                username: userKey,
+                avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(userKey)}&background=667eea&color=fff`,
+                role: 'user'
+            };
+        } catch (error) {
+            console.error('Error getting user data by ID:', error);
+            return {
+                name: userKey,
+                username: userKey,
+                avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(userKey)}&background=667eea&color=fff`,
+                role: 'user'
+            };
         }
     }
 
@@ -288,15 +423,16 @@ class KikoSocialApp {
         postDiv.className = 'post';
         postDiv.innerHTML = `
             <div class="post-header">
-                <img src="${author.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(author.name)}" alt="${author.name}" class="post-avatar">
+                <img src="${author.avatar}" alt="${author.name}" class="post-avatar">
                 <div class="post-author">
                     <h4>${author.name}</h4>
-                    <p>@${author.username || author.name.toLowerCase().replace(/\s+/g, '')}</p>
+                    <p>@${author.username}</p>
+                    ${author.role === 'admin' ? '<span class="role-badge admin">Admin</span>' : ''}
                 </div>
                 <span class="post-time">${this.formatTimestamp(post.timestamp)}</span>
             </div>
             <div class="post-content">
-                ${post.content}
+                ${this.formatPostContent(post.content)}
             </div>
             ${post.image ? `<img src="${post.image}" alt="Post image" class="post-image">` : ''}
             ${post.hashtags && post.hashtags.length > 0 ? `
@@ -326,16 +462,43 @@ class KikoSocialApp {
         return postDiv;
     }
 
-    // User Management (Admin Only)
+    formatPostContent(content) {
+        // Simple formatting similar to KikoChat
+        return content
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            .replace(/`(.*?)`/g, '<code>$1</code>')
+            .replace(/@(\w+)/g, '<span class="mention">@$1</span>')
+            .replace(/\n/g, '<br>');
+    }
+
+    // User Management (Admin Only) - Modified for KikoChat structure
     async loadUsers() {
         if (!this.isAdmin) return;
 
         try {
-            const usersRef = ref(database, 'users');
+            const usersRef = ref(database, USERS_PATH);
             const snapshot = await get(usersRef);
 
             if (snapshot.exists()) {
-                this.users = Object.values(snapshot.val());
+                const users = [];
+                snapshot.forEach((childSnapshot) => {
+                    const userKey = childSnapshot.key;
+                    const userData = childSnapshot.val();
+                    users.push({
+                        uid: userKey,
+                        email: userKey, // In KikoChat, key is the username/email
+                        name: userData.profile?.name || userKey,
+                        username: userData.profile?.username || userKey,
+                        role: userData.role || 'user',
+                        isActive: true,
+                        isOnline: userData.status?.online || false,
+                        lastSeen: userData.status?.lastSeen,
+                        joined: userData.profile?.joinDate,
+                        avatar: userData.profile?.avatarColor ? this.createAvatarFromColor(userData.profile.avatarColor, userData.profile.name) : `https://ui-avatars.com/api/?name=${encodeURIComponent(userKey)}&background=667eea&color=fff`
+                    });
+                });
+                this.users = users;
                 this.renderUsersTable();
             }
         } catch (error) {
@@ -354,18 +517,21 @@ class KikoSocialApp {
             userRow.className = 'user-row';
             userRow.innerHTML = `
                 <div class="user-info">
-                    <img src="${user.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.name)}" alt="${user.name}">
+                    <img src="${user.avatar}" alt="${user.name}">
                     <div>
                         <h4>${user.name}</h4>
-                        <p>@${user.username || user.name.toLowerCase().replace(/\s+/g, '')}</p>
+                        <p>@${user.username}</p>
                     </div>
                 </div>
                 <div>${user.email}</div>
                 <div>${this.formatDate(user.joined)}</div>
                 <div>
-                    <span class="status-badge ${user.isActive ? 'status-active' : 'status-inactive'}">
-                        ${user.isActive ? 'Active' : 'Inactive'}
+                    <span class="status-badge ${user.isOnline ? 'status-active' : 'status-inactive'}">
+                        ${user.isOnline ? 'Online' : 'Offline'}
                     </span>
+                </div>
+                <div>
+                    <span class="role-badge ${user.role}">${user.role}</span>
                 </div>
                 <div class="user-actions">
                     <button class="btn btn-secondary btn-sm edit-user-btn" data-user-id="${user.uid}">
@@ -381,17 +547,6 @@ class KikoSocialApp {
     }
 
     // Utility Methods
-    async getUserData(uid) {
-        try {
-            const userRef = ref(database, `users/${uid}`);
-            const snapshot = await get(userRef);
-            return snapshot.exists() ? snapshot.val() : null;
-        } catch (error) {
-            console.error('Error getting user data:', error);
-            return null;
-        }
-    }
-
     extractHashtags(text) {
         const hashtagRegex = /#(\w+)/g;
         const hashtags = [];
@@ -423,6 +578,8 @@ class KikoSocialApp {
         if (!timestamp) return 'Unknown';
         return new Date(timestamp).toLocaleDateString();
     }
+
+    // ... (rest of the methods remain the same as your original KikoSocialApp)
 
     // UI Methods
     showLoadingScreen() {
@@ -500,6 +657,8 @@ class KikoSocialApp {
         if (pageId === 'admin' && this.isAdmin) {
             this.loadUsers();
             this.loadAnalytics();
+        } else if (pageId === 'feed') {
+            this.loadFeed();
         }
     }
 
@@ -582,13 +741,22 @@ class KikoSocialApp {
         if (!this.isAdmin) return;
 
         try {
-            const analyticsRef = ref(database, 'analytics');
-            const snapshot = await get(analyticsRef);
+            // Calculate analytics from existing data
+            const totalUsers = this.users.length;
+            const activeUsers = this.users.filter(user => user.isOnline).length;
+            
+            const postsRef = ref(database, POSTS_PATH);
+            const postsSnapshot = await get(postsRef);
+            const totalPosts = postsSnapshot.exists() ? Object.keys(postsSnapshot.val()).length : 0;
 
-            if (snapshot.exists()) {
-                const data = snapshot.val();
-                this.updateAnalyticsUI(data);
-            }
+            const analyticsData = {
+                totalUsers: totalUsers,
+                activeUsers: activeUsers,
+                totalPosts: totalPosts,
+                engagementRate: Math.round((activeUsers / Math.max(totalUsers, 1)) * 100)
+            };
+
+            this.updateAnalyticsUI(analyticsData);
         } catch (error) {
             console.error('Error loading analytics:', error);
         }
@@ -721,7 +889,8 @@ class KikoSocialApp {
                     username: document.getElementById('new-user-username').value,
                     email: document.getElementById('new-user-email').value,
                     password: document.getElementById('new-user-password').value,
-                    bio: document.getElementById('new-user-bio').value
+                    bio: document.getElementById('new-user-bio').value,
+                    role: document.getElementById('new-user-role').value || 'user'
                 };
 
                 const result = await this.createUser(userData);
