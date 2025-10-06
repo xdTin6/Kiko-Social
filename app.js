@@ -39,9 +39,9 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const database = getDatabase(app);
+const firebaseApp = initializeApp(firebaseConfig);
+const auth = getAuth(firebaseApp);
+const database = getDatabase(firebaseApp);
 
 // Application State
 class KikoSocialApp {
@@ -759,7 +759,7 @@ class KikoSocialApp {
 }
 
 // Initialize the application
-const app = new KikoSocialApp();
+const kikoApp = new KikoSocialApp();
 
 // Export for debugging
-window.KikoSocialApp = app;
+window.KikoSocialApp = kikoApp;
