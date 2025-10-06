@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kiko Social - Modern Social Platform</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <meta name="description" content="Kiko Social - Modern social media platform with admin-controlled access">
+    <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💬</text></svg>">
+</head>
+<body data-theme="dark">
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="loading-content">
+            <div class="loading-logo">
+                <i class="fas fa-comments"></i>
+                <span>Kiko Social</span>
+            </div>
+            <div class="loading-spinner"></div>
+            <p>Loading your social world...</p>
+        </div>
+    </div>
+
+    <!-- Auth Page -->
+    <div id="auth-page" class="auth-page">
+        <div class="auth-container">
+            <div class="auth-card">
+                <div class="auth-header">
+                    <div class="logo">
+                        <i class="fas fa-comments"></i>
+                        <span>Kiko Social</span>
+                    </div>
+                    <h2>Welcome Back</h2>
+                    <p>Connect with the world in style</p>
+                </div>
+
+                <form id="auth-form" class="auth-form">
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" name="email" placeholder="Enter your email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password" placeholder="Enter your password" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="remember" name="remember">
+                            <span class="checkmark"></span>
+                            Remember me
+                        </label>
+                    </div>
+                    <button type="submit" class="auth-btn">
+                        <span>Sign In</span>
+                        <i class="fas fa-arrow-right"></i>
+                    </button>
+                </form>
+
+                <div class="auth-footer">
+                    <p>New users can only be created by admin</p>
+                </div>
+            </div>
+            <div class="auth-bg">
+                <div class="auth-bg-shape"></div>
+                <div class="auth-bg-shape"></div>
+                <div class="auth-bg-shape"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="main-app" class="main-app hidden">
+        <!-- Navigation -->
+        <nav class="navbar">
+            <div class="nav-brand">
+                <div class="logo">
+                    <i class="fas fa-comments"></i>
+                    <span>Kiko</span>
+                </div>
+            </div>
+
+            <div class="nav-search">
+                <div class="search-container">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="search-input" placeholder="Search users, posts, hashtags...">
+                </div>
+            </div>
+
+            <div class="nav-actions">
+                <button class="nav-btn" id="theme-toggle" title="Toggle theme">
+                    <i class="fas fa-moon"></i>
+                </button>
+                <button class="nav-btn" id="notifications-btn" title="Notifications">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-badge">3</span>
+                </button>
+                <button class="nav-btn" id="messages-btn" title="Messages">
+                    <i class="fas fa-envelope"></i>
+                    <span class="notification-badge">2</span>
+                </button>
+                <div class="user-menu">
+                    <button class="user-avatar" id="user-menu-btn">
+                        <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=50&h=50&fit=crop&crop=face" alt="User">
+                    </button>
+                    <div class="user-dropdown" id="user-dropdown">
+                        <div class="dropdown-header">
+                            <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=50&h=50&fit=crop&crop=face" alt="User">
+                            <div>
+                                <h4 id="user-name">Admin User</h4>
+                                <p id="user-email">xdtin6@gmail.com</p>
+                            </div>
+                        </div>
+                        <div class="dropdown-menu">
+                            <a href="#" class="dropdown-item" data-page="profile">
+                                <i class="fas fa-user"></i>
+                                Profile
+                            </a>
+                            <a href="#" class="dropdown-item" data-page="settings">
+                                <i class="fas fa-cog"></i>
+                                Settings
+                            </a>
+                            <a href="#" class="dropdown-item" id="admin-panel-btn">
+                                <i class="fas fa-shield-alt"></i>
+                                Admin Panel
+                            </a>
+                            <div class="dropdown-divider"></div>
+                            <a href="#" class="dropdown-item" id="logout-btn">
+                                <i class="fas fa-sign-out-alt"></i>
+                                Logout
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <nav class="sidebar-nav">
+                    <a href="#" class="nav-item active" data-page="feed">
+                        <i class="fas fa-home"></i>
+                        <span>Home</span>
+                    </a>
+                    <a href="#" class="nav-item" data-page="explore">
+                        <i class="fas fa-compass"></i>
+                        <span>Explore</span>
+                    </a>
+                    <a href="#" class="nav-item" data-page="messages">
+                        <i class="fas fa-envelope"></i>
+                        <span>Messages</span>
+                        <span class="badge">2</span>
+                    </a>
+                    <a href="#" class="nav-item" data-page="notifications">
+                        <i class="fas fa-bell"></i>
+                        <span>Notifications</span>
+                        <span class="badge">3</span>
+                    </a>
+                    <a href="#" class="nav-item" data-page="profile">
+                        <i class="fas fa-user"></i>
+                        <span>Profile</span>
+                    </a>
+                    <a href="#" class="nav-item" data-page="bookmarks">
+                        <i class="fas fa-bookmark"></i>
+                        <span>Bookmarks</span>
+                    </a>
+                </nav>
+
+                <div class="sidebar-widget">
+                    <h3>Trending</h3>
+                    <div class="trending-list">
+                        <div class="trending-item">
+                            <span class="hashtag">#DesignTrends2024</span>
+                            <span class="count">1.2K posts</span>
+                        </div>
+                        <div class="trending-item">
+                            <span class="hashtag">#TechInnovation</span>
+                            <span class="count">856 posts</span>
+                        </div>
+                        <div class="trending-item">
+                            <span class="hashtag">#CreativeProcess</span>
+                            <span class="count">542 posts</span>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Content Area -->
+            <div class="content-area">
+                <!-- Feed Page -->
+                <div id="feed-page" class="page active">
+                    <!-- Post Composer -->
+                    <div class="post-composer">
+                        <div class="composer-header">
+                            <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=50&h=50&fit=crop&crop=face" alt="User" class="composer-avatar">
+                            <textarea placeholder="What's happening?" id="post-content"></textarea>
+                        </div>
+                        <div class="composer-actions">
+                            <div class="composer-tools">
+                                <button class="tool-btn" id="image-btn" title="Add image">
+                                    <i class="fas fa-image"></i>
+                                </button>
+                                <button class="tool-btn" id="emoji-btn" title="Add emoji">
+                                    <i class="fas fa-smile"></i>
+                                </button>
+                                <button class="tool-btn" id="poll-btn" title="Create poll">
+                                    <i class="fas fa-poll"></i>
+                                </button>
+                            </div>
+                            <button class="post-btn" id="publish-btn">
+                                <span>Post</span>
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Posts Feed -->
+                    <div id="posts-feed" class="posts-feed">
+                        <!-- Posts will be dynamically loaded here -->
+                    </div>
+                </div>
+
+                <!-- Admin Panel -->
+                <div id="admin-page" class="page">
+                    <div class="admin-header">
+                        <h2>Admin Panel</h2>
+                        <p>Manage users, content, and platform settings</p>
+                    </div>
+
+                    <div class="admin-tabs">
+                        <button class="tab-btn active" data-tab="users">Users</button>
+                        <button class="tab-btn" data-tab="analytics">Analytics</button>
+                        <button class="tab-btn" data-tab="settings">Settings</button>
+                    </div>
+
+                    <div class="admin-content">
+                        <!-- Users Tab -->
+                        <div id="users-tab" class="tab-content active">
+                            <div class="tab-header">
+                                <h3>User Management</h3>
+                                <button class="btn btn-primary" id="create-user-btn">
+                                    <i class="fas fa-plus"></i>
+                                    Create User
+                                </button>
+                            </div>
+                            <div class="users-table">
+                                <div class="table-header">
+                                    <div class="th">User</div>
+                                    <div class="th">Email</div>
+                                    <div class="th">Joined</div>
+                                    <div class="th">Status</div>
+                                    <div class="th">Actions</div>
+                                </div>
+                                <div id="users-list" class="table-body">
+                                    <!-- Users will be loaded here -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Analytics Tab -->
+                        <div id="analytics-tab" class="tab-content">
+                            <div class="stats-grid">
+                                <div class="stat-card">
+                                    <div class="stat-icon">
+                                        <i class="fas fa-users"></i>
+                                    </div>
+                                    <div class="stat-content">
+                                        <h3 id="total-users">1,247</h3>
+                                        <p>Total Users</p>
+                                        <span class="stat-change positive">+5.2%</span>
+                                    </div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-icon">
+                                        <i class="fas fa-user-check"></i>
+                                    </div>
+                                    <div class="stat-content">
+                                        <h3 id="active-users">892</h3>
+                                        <p>Active Users</p>
+                                        <span class="stat-change positive">+2.1%</span>
+                                    </div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-icon">
+                                        <i class="fas fa-file-alt"></i>
+                                    </div>
+                                    <div class="stat-content">
+                                        <h3 id="total-posts">5,634</h3>
+                                        <p>Total Posts</p>
+                                        <span class="stat-change positive">+12.3%</span>
+                                    </div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-icon">
+                                        <i class="fas fa-heart"></i>
+                                    </div>
+                                    <div class="stat-content">
+                                        <h3 id="engagement-rate">8.7%</h3>
+                                        <p>Engagement Rate</p>
+                                        <span class="stat-change positive">+1.4%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Other pages will be added here -->
+                <div id="messages-page" class="page">
+                    <h2>Messages</h2>
+                    <p>Direct messaging feature coming soon!</p>
+                </div>
+
+                <div id="profile-page" class="page">
+                    <h2>Profile</h2>
+                    <p>User profile management coming soon!</p>
+                </div>
+
+                <div id="settings-page" class="page">
+                    <h2>Settings</h2>
+                    <p>Application settings coming soon!</p>
+                </div>
+            </div>
+
+            <!-- Right Sidebar -->
+            <aside class="right-sidebar">
+                <div class="widget">
+                    <h3>Who to Follow</h3>
+                    <div class="suggestions">
+                        <div class="suggestion-item">
+                            <img src="https://images.unsplash.com/photo-1494790108755-2616b612b786?w=50&h=50&fit=crop&crop=face" alt="User">
+                            <div class="suggestion-info">
+                                <h4>Alice Johnson</h4>
+                                <p>@alicej</p>
+                            </div>
+                            <button class="follow-btn">Follow</button>
+                        </div>
+                        <div class="suggestion-item">
+                            <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=50&h=50&fit=crop&crop=face" alt="User">
+                            <div class="suggestion-info">
+                                <h4>Marcus Chen</h4>
+                                <p>@marcusc</p>
+                            </div>
+                            <button class="follow-btn">Follow</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="widget">
+                    <h3>Recent Activity</h3>
+                    <div class="activity-list">
+                        <div class="activity-item">
+                            <i class="fas fa-heart activity-icon"></i>
+                            <p><strong>Alice</strong> liked your post</p>
+                            <span class="activity-time">2m</span>
+                        </div>
+                        <div class="activity-item">
+                            <i class="fas fa-comment activity-icon"></i>
+                            <p><strong>Marcus</strong> commented on your post</p>
+                            <span class="activity-time">5m</span>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <!-- Create User Modal -->
+    <div id="create-user-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Create New User</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="create-user-form" class="modal-form">
+                <div class="form-group">
+                    <label for="new-user-name">Full Name</label>
+                    <input type="text" id="new-user-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="new-user-username">Username</label>
+                    <input type="text" id="new-user-username" required>
+                </div>
+                <div class="form-group">
+                    <label for="new-user-email">Email</label>
+                    <input type="email" id="new-user-email" required>
+                </div>
+                <div class="form-group">
+                    <label for="new-user-password">Password</label>
+                    <input type="password" id="new-user-password" required>
+                </div>
+                <div class="form-group">
+                    <label for="new-user-bio">Bio</label>
+                    <textarea id="new-user-bio" placeholder="Tell us about this user..."></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
